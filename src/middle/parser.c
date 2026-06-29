@@ -1,6 +1,7 @@
 #include "parser.h"
 
 #include <stdint.h>
+#include <string.h>
 
 #include "drivers/uart.h"
 
