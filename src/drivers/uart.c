@@ -1,6 +1,8 @@
 #include "uart.h"
 
+#include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "stm32f1xx.h"
 
@@ -28,30 +30,76 @@ void uart1_init(void)
     USART1->BRR = (8000000U + 9600U / 2U) / 9600U;
 
     USART1->CR1 |= USART_CR1_UE | USART_CR1_TE | USART_CR1_RE;
+
+    DMA1_Channel4->CCR &= ~(uint32_t)DMA_CCR_EN;
+    while ((DMA1_Channel4->CCR & DMA_CCR_EN) != 0U)
+    {
+        __NOP();
+    }
+
+    DMA1_Channel4->CCR  = (uint32_t)(DMA_CCR_DIR | DMA_CCR_MINC | DMA_CCR_PL_1);
+    DMA1_Channel4->CPAR = (uint32_t)&(USART1->DR);
+    DMA1_Channel4->CMAR = 0U;
+    USART1->CR3 |= (uint32_t)USART_CR3_DMAT;
+
     USART1->CR3 |= USART_CR3_DMAR;
-
     USART1->CR1 |= USART_CR1_IDLEIE;
-
-    NVIC_EnableIRQ(USART1_IRQn);
 
     DMA1_Channel5->CPAR  = (uint32_t)&USART1->DR;
     DMA1_Channel5->CMAR  = (uint32_t)rx_buf;
     DMA1_Channel5->CNDTR = RX_BUF_SIZE;
 
     DMA1_Channel5->CCR |= DMA_CCR_MINC | DMA_CCR_CIRC | DMA_CCR_PL_0;
+
+    NVIC_EnableIRQ(USART1_IRQn);
+
     DMA1_Channel5->CCR |= DMA_CCR_EN;
+}
+
+uint8_t uart_is_busy(void)
+{
+    if (((DMA1_Channel4->CCR & DMA_CCR_EN) != 0U) && (DMA1_Channel4->CNDTR > 0U))
+    {
+        return 1U;
+    }
+
+    if ((USART1->SR & USART_SR_TC) == 0U)
+    {
+        return 1U;
+    }
+
+    return 0U;
+}
+
+uint8_t uart_send_dma(const char* buf, uint16_t len)
+{
+    if ((buf == NULL) || (len == 0))
+    {
+        return 0U;
+    }
+
+    while (uart_is_busy() != 0U)
+    {
+        __NOP();
+    }
+
+    DMA1_Channel4->CCR &= ~(uint32_t)DMA_CCR_EN;
+    DMA1->IFCR = (uint32_t)(DMA_IFCR_CGIF4 | DMA_IFCR_CTCIF4 | DMA_IFCR_CHTIF4 | DMA_IFCR_CTEIF4);
+    volatile uint32_t temp = USART1->SR;
+    (void)temp;
+    USART1->SR &= ~(uint32_t)USART_SR_TC;
+    DMA1_Channel4->CMAR  = (uint32_t)buf;
+    DMA1_Channel4->CNDTR = len;
+    DMA1_Channel4->CCR |= (uint32_t)DMA_CCR_EN;
+
+    return 1U;
 }
 
 void uart_send_str(const char* str)
 {
-    while (*str)
+    if (str != NULL)
     {
-        while (!(USART1->SR & USART_SR_TXE))
-        {
-            __NOP();
-        }
-
-        USART1->DR = *str++;
+        uart_send_dma(str, (uint16_t)strlen(str));
     }
 }
 

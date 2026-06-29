@@ -9,4 +9,7 @@ uint8_t get_is_ready(void);
 uint8_t* get_cmd_buf(void);
 void clear_cmd_ready(void);
 
+uint8_t uart_is_busy(void);
+uint8_t uart_send_dma(const char *buf, uint16_t len);
+
 #endif
