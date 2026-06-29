@@ -9,8 +9,13 @@
 
 #define MAX_ARGC 4
 
+
+/**
+ * @brief Main execution entry point. Implements the flight software superloop.
+ */
 int main(void)
 {
+    /* Initialize OBC core subsystems and communication interfaces */
     obc_core_init();
 
     uart1_init();
@@ -19,8 +24,10 @@ int main(void)
     char local_line[64U];
     char* argv[MAX_ARGC];
 
+    /* Spacecraft core runtime loop */
     while (true)
     {
+        /* Process commands instantly once flagged by the UART DMA IDLE routine */
         if (get_is_ready())
         {
             strcpy(local_line, (char*)get_cmd_buf());

@@ -6,6 +6,10 @@
 #include "drivers/uart.h"
 #include "middle/obc_core.h"
 
+/**
+ * @brief Tokenize raw input string into arguments by replacing spaces with null-terminators
+ * @return Total number of successfully parsed arguments (argc)
+ */
 uint8_t cli_parser(char* line, char* argv[], uint8_t max_args)
 {
     uint8_t argc = 0;
@@ -38,6 +42,9 @@ uint8_t cli_parser(char* line, char* argv[], uint8_t max_args)
     return argc;
 }
 
+/**
+ * @brief Match parsed ground station commands and route execution to the OBC core manager
+ */
 void cli_execute(uint8_t cmd, char* argv[])
 {
     if (cmd == 0)
